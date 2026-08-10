@@ -57,6 +57,14 @@ resource "aws_eks_cluster" "this" {
     bootstrap_cluster_creator_admin_permissions = false
   }
 
+  dynamic "control_plane_scaling_config" {
+    for_each = var.control_plane_scaling_config != null ? [var.control_plane_scaling_config] : []
+
+    content {
+      tier = control_plane_scaling_config.value.tier
+    }
+  }
+
   dynamic "compute_config" {
     for_each = var.compute_config != null ? [var.compute_config] : []
 
@@ -68,11 +76,12 @@ resource "aws_eks_cluster" "this" {
   }
 
   vpc_config {
-    security_group_ids      = compact(distinct(concat(var.additional_security_group_ids, [local.security_group_id])))
-    subnet_ids              = coalescelist(var.control_plane_subnet_ids, var.subnet_ids)
-    endpoint_private_access = var.endpoint_private_access
-    endpoint_public_access  = var.endpoint_public_access
-    public_access_cidrs     = var.endpoint_public_access_cidrs
+    control_plane_egress_mode = var.control_plane_egress_mode
+    security_group_ids        = compact(distinct(concat(var.additional_security_group_ids, [local.security_group_id])))
+    subnet_ids                = coalescelist(var.control_plane_subnet_ids, var.subnet_ids)
+    endpoint_private_access   = var.endpoint_private_access
+    endpoint_public_access    = var.endpoint_public_access
+    public_access_cidrs       = var.endpoint_public_access_cidrs
   }
 
   dynamic "kubernetes_network_config" {
@@ -174,7 +183,6 @@ resource "aws_eks_cluster" "this" {
   }
 
   tags = merge(
-    { terraform-aws-modules = "eks" },
     var.tags,
     var.cluster_tags,
   )
@@ -359,7 +367,6 @@ module "kms" {
   }
 
   tags = merge(
-    { terraform-aws-modules = "eks" },
     var.tags,
   )
 }
@@ -771,6 +778,14 @@ resource "aws_eks_addon" "this" {
   addon_version        = coalesce(each.value.addon_version, data.aws_eks_addon_version.this[each.key].version)
   configuration_values = each.value.configuration_values
 
+  dynamic "namespace_config" {
+    for_each = each.value.namespace_config != null ? [each.value.namespace_config] : []
+
+    content {
+      namespace = namespace_config.value.namespace
+    }
+  }
+
   dynamic "pod_identity_association" {
     for_each = each.value.pod_identity_association != null ? each.value.pod_identity_association : []
 
@@ -815,6 +830,14 @@ resource "aws_eks_addon" "before_compute" {
 
   addon_version        = coalesce(each.value.addon_version, data.aws_eks_addon_version.this[each.key].version)
   configuration_values = each.value.configuration_values
+
+  dynamic "namespace_config" {
+    for_each = each.value.namespace_config != null ? [each.value.namespace_config] : []
+
+    content {
+      namespace = namespace_config.value.namespace
+    }
+  }
 
   dynamic "pod_identity_association" {
     for_each = each.value.pod_identity_association != null ? each.value.pod_identity_association : []

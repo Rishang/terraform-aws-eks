@@ -72,6 +72,14 @@ variable "compute_config" {
   default = null
 }
 
+variable "control_plane_scaling_config" {
+  description = "Configuration block for the EKS Provisioned Control Plane scaling tier. Valid values for tier are `standard`, `tier-xl`, `tier-2xl`, `tier-4xl` and `tier-8xl`"
+  type = object({
+    tier = string
+  })
+  default = null
+}
+
 variable "upgrade_policy" {
   description = "Configuration block for the cluster upgrade policy"
   type = object({
@@ -117,6 +125,12 @@ variable "subnet_ids" {
   description = "A list of subnet IDs where the nodes/node groups will be provisioned. If `control_plane_subnet_ids` is not provided, the EKS cluster control plane (ENIs) will be provisioned in these subnets"
   type        = list(string)
   default     = []
+}
+
+variable "control_plane_egress_mode" {
+  description = "Egress mode for the EKS control plane. Valid values are `AWS_MANAGED` and `CUSTOMER_ROUTED`"
+  type        = string
+  default     = null
 }
 
 variable "endpoint_private_access" {
@@ -635,6 +649,9 @@ variable "addons" {
     most_recent          = optional(bool, true)
     addon_version        = optional(string)
     configuration_values = optional(string)
+    namespace_config = optional(object({
+      namespace = string
+    }))
     pod_identity_association = optional(list(object({
       role_arn        = string
       service_account = string
@@ -1003,9 +1020,10 @@ variable "self_managed_node_groups" {
       }))
     }))
     cpu_options = optional(object({
-      amd_sev_snp      = optional(string)
-      core_count       = optional(number)
-      threads_per_core = optional(number)
+      amd_sev_snp           = optional(string)
+      core_count            = optional(number)
+      nested_virtualization = optional(string)
+      threads_per_core      = optional(number)
     }))
     credit_specification = optional(object({
       cpu_credits = optional(string)
@@ -1123,6 +1141,9 @@ variable "self_managed_node_groups" {
       security_groups      = optional(list(string))
       subnet_id            = optional(string)
     })))
+    network_performance_options = optional(object({
+      bandwidth_weighting = optional(string)
+    }))
     placement = optional(object({
       affinity                = optional(string)
       availability_zone       = optional(string)
@@ -1244,7 +1265,17 @@ variable "eks_managed_node_groups" {
     instance_types                 = optional(list(string))
     labels                         = optional(map(string))
     node_repair_config = optional(object({
-      enabled = optional(bool)
+      enabled                                 = optional(bool)
+      max_parallel_nodes_repaired_count       = optional(number)
+      max_parallel_nodes_repaired_percentage  = optional(number)
+      max_unhealthy_node_threshold_count      = optional(number)
+      max_unhealthy_node_threshold_percentage = optional(number)
+      node_repair_config_overrides = optional(list(object({
+        min_repair_wait_time_mins = number
+        node_monitoring_condition = string
+        node_unhealthy_reason     = string
+        repair_action             = string
+      })))
     }))
     remote_access = optional(object({
       ec2_ssh_key               = optional(string)
@@ -1258,6 +1289,7 @@ variable "eks_managed_node_groups" {
     update_config = optional(object({
       max_unavailable            = optional(number)
       max_unavailable_percentage = optional(number)
+      update_strategy            = optional(string)
     }))
     timeouts = optional(object({
       create = optional(string)
@@ -1323,9 +1355,10 @@ variable "eks_managed_node_groups" {
       }))
     }))
     cpu_options = optional(object({
-      amd_sev_snp      = optional(string)
-      core_count       = optional(number)
-      threads_per_core = optional(number)
+      amd_sev_snp           = optional(string)
+      core_count            = optional(number)
+      nested_virtualization = optional(string)
+      threads_per_core      = optional(number)
     }))
     credit_specification = optional(object({
       cpu_credits = optional(string)
@@ -1401,6 +1434,9 @@ variable "eks_managed_node_groups" {
       security_groups      = optional(list(string), [])
       subnet_id            = optional(string)
     })))
+    network_performance_options = optional(object({
+      bandwidth_weighting = optional(string)
+    }))
     maintenance_options = optional(object({
       auto_recovery = optional(string)
     }))
